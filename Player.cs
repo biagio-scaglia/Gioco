@@ -82,14 +82,10 @@ namespace SimplePlatformer
             Hitbox.X += Velocity.X * dt;
             Hitbox.Y += Velocity.Y * dt;
 
-            // Collisioni con i bordi dello schermo
+            // Collisioni con i bordi dello schermo (solo sinistra e fondo)
             if (Hitbox.X < 0) 
             {
                 Hitbox.X = 0;
-            }
-            if (Hitbox.X > 800 - Hitbox.Width) 
-            {
-                Hitbox.X = 800 - Hitbox.Width;
             }
 
             IsGrounded = false;
@@ -106,11 +102,13 @@ namespace SimplePlatformer
                 }
             }
 
-            if (Hitbox.Y > 600 - Hitbox.Height)
+            // Se cade di sotto (es nei fossi), rinasce all'inizio o muore. 
+            // Per ora lo fermiamo sul fondo estremo invisibile (Y = 1000) o lo facciamo semplicemente cadere.
+            // Lasciamolo cadere, Program.cs può gestire il Game Over se vogliamo, ma per ora semplicemente muore se esce troppo a fondo.
+            if (Hitbox.Y > 1200)
             {
-                Hitbox.Y = 600 - Hitbox.Height;
+                Hitbox.Y = 1200;
                 Velocity.Y = 0;
-                IsGrounded = true;
             }
         }
 

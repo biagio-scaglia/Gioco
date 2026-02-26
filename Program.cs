@@ -8,7 +8,9 @@ namespace SimplePlatformer
     {
         MainMenu,
         Options,
-        Gameplay
+        Gameplay,
+        GameOver,
+        LevelComplete
     }
 
     class Program
@@ -31,23 +33,30 @@ namespace SimplePlatformer
 
             Player player = new Player(new Vector2(400, 300), assets);
             
-            Rectangle[] platforms = new Rectangle[] {
-                new Rectangle(100, 500, 600, 40)
-            };
+            Level gameLevel = new Level(assets);
 
             Texture2D backgroundTex = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"backgrounds\background.png"));
             Texture2D ringTexture = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"items\ring.gif"));
             Sound ringSound = Raylib.LoadSound(System.IO.Path.Combine(assets, @"sounds\ring.mp3"));
+            Font customFont = Raylib.LoadFont(System.IO.Path.Combine(assets, @"fonts\PixelOperator8-Bold.ttf"));
 
             List<Ring> rings = new List<Ring>
             {
-                new Ring(new Vector2(200, 450)),
                 new Ring(new Vector2(300, 450)),
-                new Ring(new Vector2(350, 400)),
-                new Ring(new Vector2(500, 450))
+                new Ring(new Vector2(600, 250)),
+                new Ring(new Vector2(1200, 400)),
+                new Ring(new Vector2(2500, 450))
             };
 
             int score = 0;
+            float timeRemaining = 60f; // 60 secondi
+            
+            // Camera setup
+            Camera2D camera = new Camera2D();
+            camera.Target = player.Hitbox.Position;
+            camera.Offset = new Vector2(800 / 2.0f, 600 / 2.0f);
+            camera.Rotation = 0.0f;
+            camera.Zoom = 1.0f;
 
             while (!Raylib.WindowShouldClose())
             {
@@ -64,7 +73,14 @@ namespace SimplePlatformer
 
                         if (Raylib.IsKeyPressed(KeyboardKey.Enter))
                         {
-                            if (selectedMenuOption == 0)      currentState = GameState.Gameplay;
+                            if (selectedMenuOption == 0)      
+                            {
+                                score = 0;
+                                timeRemaining = 60f;
+                                player = new Player(new Vector2(400, 300), assets); // Reset pos
+                                foreach(var r in rings) r.IsCollected = false;
+                                currentState = GameState.Gameplay;
+                            }
                             else if (selectedMenuOption == 1) currentState = GameState.Options;
                         }
                         break;
@@ -77,7 +93,29 @@ namespace SimplePlatformer
                         break;
 
                     case GameState.Gameplay:
-                        player.Update(dt, platforms);
+                        timeRemaining -= dt;
+                        if (timeRemaining <= 0)
+                        {
+                            currentState = GameState.GameOver;
+                        }
+
+                        player.Update(dt, gameLevel.Platforms.ToArray());
+                        
+                        // Game Over se cade nel vuoto
+                        if (player.Hitbox.Y > 800)
+                        {
+                            currentState = GameState.GameOver;
+                        }
+                        
+                        // Aggiorniamo la camera per seguire il giocatore orizzontalmente
+                        if (player.Hitbox.X > 400) camera.Target.X = player.Hitbox.X;
+                        camera.Target.Y = 300; // Camera fissa in verticale
+
+                        // Traguardo (Win Condition)
+                        if (Raylib.CheckCollisionRecs(player.Hitbox, gameLevel.FinishLine))
+                        {
+                            currentState = GameState.LevelComplete;
+                        }
 
                         // Controlla la collisione con gli anelli
                         foreach (var ring in rings)
@@ -89,6 +127,11 @@ namespace SimplePlatformer
                                 score += 10;
                             }
                         }
+                        break;
+                        
+                    case GameState.GameOver:
+                    case GameState.LevelComplete:
+                        if (Raylib.IsKeyPressed(KeyboardKey.Enter)) currentState = GameState.MainMenu;
                         break;
                 }
 
@@ -122,13 +165,13 @@ namespace SimplePlatformer
                 {
                     Raylib.ClearBackground(Color.SkyBlue);
                     
-                    // Disegna lo sfondo per primo (dietro a tutto)
+                    // Disegna lo sfondo per primo (Fisso)
                     Raylib.DrawTexture(backgroundTex, 0, 0, Color.White);
 
-                    foreach(var plat in platforms)
-                    {
-                        Raylib.DrawRectangleRec(plat, Color.DarkGray);
-                    }
+                    Raylib.BeginMode2D(camera);
+
+                    // Disegna i Tile del Livello (si muovono con la camera)
+                    gameLevel.Draw();
                     
                     // Disegna gli anelli
                     foreach (var ring in rings)
@@ -137,18 +180,36 @@ namespace SimplePlatformer
                     }
                     
                     player.Draw(dt);
+                    
+                    Raylib.EndMode2D(); // Fine oggetti che seguono la camera
 
-                    // Disegna il Punteggio (Score)
-                    Raylib.DrawText($"SCORE: {score}", 620, 20, 30, Color.Gold);
+                    // UI STATICA (non influenzata dalla camera)
+                    Raylib.DrawTextEx(customFont, $"SCORE: {score}", new Vector2(20, 20), 24, 2, Color.Gold);
+                    Raylib.DrawTextEx(customFont, $"TIME: {(int)timeRemaining}", new Vector2(520, 20), 24, 2, Color.Red);
+                }
+                else if (currentState == GameState.GameOver)
+                {
+                    Raylib.ClearBackground(Color.Black);
+                    Raylib.DrawTextEx(customFont, "GAME OVER", new Vector2(250, 250), 40, 2, Color.Red);
+                    Raylib.DrawTextEx(customFont, "Premi INVIO", new Vector2(300, 350), 20, 2, Color.White);
+                }
+                else if (currentState == GameState.LevelComplete)
+                {
+                    Raylib.ClearBackground(Color.DarkGreen);
+                    Raylib.DrawTextEx(customFont, "LIVELLO COMPLETATO!", new Vector2(50, 250), 35, 2, Color.Gold);
+                    Raylib.DrawTextEx(customFont, $"Punti totali: {score}", new Vector2(250, 320), 24, 2, Color.White);
+                    Raylib.DrawTextEx(customFont, "Premi INVIO", new Vector2(300, 400), 20, 2, Color.LightGray);
                 }
 
                 Raylib.EndDrawing();
             }
 
             // Scarica dalla memoria texture e suoni
+            Raylib.UnloadFont(customFont);
             Raylib.UnloadTexture(backgroundTex);
             Raylib.UnloadTexture(ringTexture);
             Raylib.UnloadSound(ringSound);
+            gameLevel.Unload();
             player.Unload();
             
             Raylib.CloseAudioDevice(); // Chiudi il sistema audio

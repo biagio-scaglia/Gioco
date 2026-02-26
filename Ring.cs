@@ -10,7 +10,6 @@ namespace SimplePlatformer
         
         public Ring(Vector2 position)
         {
-            // Dimensione indicativa dell'anello
             Hitbox = new Rectangle(position.X, position.Y, 30, 30);
         }
 
