@@ -18,7 +18,7 @@ namespace SimplePlatformer
         static void Main()
         {
             Raylib.InitWindow(800, 600, "Knuckles Platformer .NET");
-            Raylib.InitAudioDevice(); // Inizializza il sistema audio
+            Raylib.InitAudioDevice();
             Raylib.SetTargetFPS(60);
 
             string basePath = System.AppDomain.CurrentDomain.BaseDirectory;
@@ -49,9 +49,8 @@ namespace SimplePlatformer
             };
 
             int score = 0;
-            float timeRemaining = 60f; // 60 secondi
+            float timeRemaining = 60f;
             
-            // Camera setup
             Camera2D camera = new Camera2D();
             camera.Target = player.Hitbox.Position;
             camera.Offset = new Vector2(800 / 2.0f, 600 / 2.0f);
@@ -77,7 +76,8 @@ namespace SimplePlatformer
                             {
                                 score = 0;
                                 timeRemaining = 60f;
-                                player = new Player(new Vector2(400, 300), assets); // Reset pos
+                                player = new Player(new Vector2(400, 300), assets);
+                                camera.Target = player.Hitbox.Position;
                                 foreach(var r in rings) r.IsCollected = false;
                                 currentState = GameState.Gameplay;
                             }
@@ -101,23 +101,19 @@ namespace SimplePlatformer
 
                         player.Update(dt, gameLevel.Platforms.ToArray());
                         
-                        // Game Over se cade nel vuoto
                         if (player.Hitbox.Y > 800)
                         {
                             currentState = GameState.GameOver;
                         }
                         
-                        // Aggiorniamo la camera per seguire il giocatore orizzontalmente
                         if (player.Hitbox.X > 400) camera.Target.X = player.Hitbox.X;
-                        camera.Target.Y = 300; // Camera fissa in verticale
+                        camera.Target.Y = 300;
 
-                        // Traguardo (Win Condition)
                         if (Raylib.CheckCollisionRecs(player.Hitbox, gameLevel.FinishLine))
                         {
                             currentState = GameState.LevelComplete;
                         }
 
-                        // Controlla la collisione con gli anelli
                         foreach (var ring in rings)
                         {
                             if (!ring.IsCollected && Raylib.CheckCollisionRecs(player.Hitbox, ring.Hitbox))
@@ -165,15 +161,12 @@ namespace SimplePlatformer
                 {
                     Raylib.ClearBackground(Color.SkyBlue);
                     
-                    // Disegna lo sfondo per primo (Fisso)
                     Raylib.DrawTexture(backgroundTex, 0, 0, Color.White);
 
                     Raylib.BeginMode2D(camera);
 
-                    // Disegna i Tile del Livello (si muovono con la camera)
                     gameLevel.Draw();
                     
-                    // Disegna gli anelli
                     foreach (var ring in rings)
                     {
                         ring.Draw(ringTexture);
@@ -181,9 +174,8 @@ namespace SimplePlatformer
                     
                     player.Draw(dt);
                     
-                    Raylib.EndMode2D(); // Fine oggetti che seguono la camera
+                    Raylib.EndMode2D();
 
-                    // UI STATICA (non influenzata dalla camera)
                     Raylib.DrawTextEx(customFont, $"SCORE: {score}", new Vector2(20, 20), 24, 2, Color.Gold);
                     Raylib.DrawTextEx(customFont, $"TIME: {(int)timeRemaining}", new Vector2(520, 20), 24, 2, Color.Red);
                 }
@@ -204,7 +196,6 @@ namespace SimplePlatformer
                 Raylib.EndDrawing();
             }
 
-            // Scarica dalla memoria texture e suoni
             Raylib.UnloadFont(customFont);
             Raylib.UnloadTexture(backgroundTex);
             Raylib.UnloadTexture(ringTexture);
@@ -212,7 +203,7 @@ namespace SimplePlatformer
             gameLevel.Unload();
             player.Unload();
             
-            Raylib.CloseAudioDevice(); // Chiudi il sistema audio
+            Raylib.CloseAudioDevice();
             Raylib.CloseWindow();
         }
     }

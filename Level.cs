@@ -7,10 +7,9 @@ namespace SimplePlatformer
     public class Level
     {
         private Texture2D tileset;
-        private int tileSize = 32; // Disegniamo i tile grande il doppio dell'originale
+        private int tileSize = 32;
         private int tileOriginalSize = 16;
         
-        // Mappa del livello: 0 = vuoto, 1 = terra/erba, 2 = terra profonda, 3 = piattaforma fluttuante
         public int[,] MapGrid;
         public Rectangle FinishLine { get; private set; }
         
@@ -21,33 +20,29 @@ namespace SimplePlatformer
             tileset = Raylib.LoadTexture(System.IO.Path.Combine(assetPath, @"sprites\world_tileset.png"));
             Platforms = new List<Rectangle>();
             
-            // Creiamo un livello molto più lungo: 100 colonne (3200 pixel)
             MapGrid = new int[19, 100];
             
-            // Riempiamo il pavimento ma con qualche buco (fosso)
             for (int x = 0; x < 100; x++)
             {
-                if (x > 30 && x < 35) continue; // Fosso 1
-                if (x > 60 && x < 68) continue; // Fosso 2 (più grande)
+                if (x > 30 && x < 35) continue;
+                if (x > 60 && x < 68) continue;
 
-                MapGrid[15, x] = 1; // Erba (Row 0, Col 0 nella sprite)
-                MapGrid[16, x] = 2; // Terra
+                MapGrid[15, x] = 1;
+                MapGrid[16, x] = 2;
                 MapGrid[17, x] = 2; 
                 MapGrid[18, x] = 2;
             }
             
-            // Qualche piattaforma rialzata sparsa nel livello
             MapGrid[12, 10] = 1; MapGrid[12, 11] = 1; MapGrid[12, 12] = 1;
             MapGrid[9, 17] = 1; MapGrid[9, 18] = 1;
             
-            MapGrid[12, 32] = 1; // Piattaforma salvataggio sopra il fosso
+            MapGrid[12, 32] = 1;
             MapGrid[11, 33] = 1;
 
-            MapGrid[10, 62] = 1; MapGrid[8, 65] = 1; // Scaletta sul fosso grande
+            MapGrid[10, 62] = 1; MapGrid[8, 65] = 1;
 
             MapGrid[13, 80] = 1; MapGrid[13, 81] = 1; MapGrid[13, 82] = 1;
 
-            // Definiamo un'area invisibile alla fine del livello (colonna 95)
             FinishLine = new Rectangle(95 * tileSize, 0, 5 * tileSize, 600);
 
             GenerateCollisionData();
@@ -83,18 +78,17 @@ namespace SimplePlatformer
                     int tileId = MapGrid[y, x];
                     if (tileId > 0)
                     {
-                        // Mappatura base dei Tile (esempio per un tipico tileset 16x16)
                         int texX = 0;
                         int texY = 0;
 
-                        if (tileId == 1) // Erba top
+                        if (tileId == 1)
                         {
                             texX = 0; texY = 0;
                             Rectangle source = new Rectangle(texX, texY, tileOriginalSize, tileOriginalSize);
                             Rectangle dest = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
                             Raylib.DrawTexturePro(tileset, source, dest, new Vector2(0,0), 0f, Color.White);
                         }
-                        else if (tileId == 2) // Terra
+                        else if (tileId == 2)
                         {
                             texX = 0; texY = 16;
                             Rectangle source = new Rectangle(texX, texY, tileOriginalSize, tileOriginalSize);
@@ -105,7 +99,6 @@ namespace SimplePlatformer
                 }
             }
             
-            // Disegna il traguardo
             Raylib.DrawRectangleRec(FinishLine, new Color(0, 255, 0, 100));
         }
 
