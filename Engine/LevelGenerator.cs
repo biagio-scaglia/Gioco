@@ -11,8 +11,8 @@ namespace SimplePlatformer.Engine
         public static MapData CreateLevel1()
         {
             var map = new MapData(19, 100);
-
-            map.StartPosition = new Vector2(400, 300);
+            // Posiziona il giocatore esattamente sul terreno (Y = 15 * 32)
+            map.StartPosition = new Vector2(6 * TileSize, 15 * TileSize);
             
             for (int x = 0; x < 100; x++)
             {
@@ -51,9 +51,10 @@ namespace SimplePlatformer.Engine
                     }
                 }
             }
-
-            map.Checkpoints.Add(new Rectangle(25 * TileSize, 13 * TileSize - 64, 64, 64));
-            map.Checkpoints.Add(new Rectangle(75 * TileSize, 13 * TileSize - 64, 64, 64));
+            // Il checkpoint 1 si trova sulla piattaforma a Y=12. L'altezza è 64, quindi sottraiamo 64 per farlo poggiare.
+            map.Checkpoints.Add(new Rectangle(25 * TileSize, 12 * TileSize - 64, 64, 64));
+            // Il checkpoint 2 si trova sul terreno base a Y=15.
+            map.Checkpoints.Add(new Rectangle(75 * TileSize, 15 * TileSize - 64, 64, 64));
 
             map.FinishLine = new Rectangle(95 * TileSize, 0, 5 * TileSize, 600);
 
