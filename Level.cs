@@ -10,15 +10,27 @@ namespace SimplePlatformer
         private int tileSize = 32;
         private int tileOriginalSize = 16;
         
+        private Texture2D texStart;
+        private Texture2D texCheckpointIdle;
+        private Texture2D texCheckpointOut;
+
         public int[,] MapGrid;
         public Rectangle FinishLine { get; private set; }
+        public List<Rectangle> Checkpoints { get; private set; }
+        public HashSet<int> ReachedCheckpoints { get; private set; }
         
         public List<Rectangle> Platforms { get; private set; }
 
         public Level(string assetPath)
         {
             tileset = Raylib.LoadTexture(System.IO.Path.Combine(assetPath, @"sprites\world_tileset.png"));
+            texStart = Raylib.LoadTexture(System.IO.Path.Combine(assetPath, @"Start\Start (Idle).png"));
+            texCheckpointIdle = Raylib.LoadTexture(System.IO.Path.Combine(assetPath, @"Checkpoint\Checkpoint (Flag Idle)(64x64).png"));
+            texCheckpointOut = Raylib.LoadTexture(System.IO.Path.Combine(assetPath, @"Checkpoint\Checkpoint (Flag Out) (64x64).png"));
+            
             Platforms = new List<Rectangle>();
+            Checkpoints = new List<Rectangle>();
+            ReachedCheckpoints = new HashSet<int>();
             
             MapGrid = new int[19, 100];
             
@@ -36,12 +48,21 @@ namespace SimplePlatformer
             MapGrid[12, 10] = 1; MapGrid[12, 11] = 1; MapGrid[12, 12] = 1;
             MapGrid[9, 17] = 1; MapGrid[9, 18] = 1;
             
+            MapGrid[12, 25] = 1; MapGrid[12, 26] = 1;
+            
             MapGrid[12, 32] = 1;
             MapGrid[11, 33] = 1;
 
+            MapGrid[10, 42] = 1; MapGrid[10, 43] = 1;
+            MapGrid[7, 48] = 1; MapGrid[7, 49] = 1;
+
             MapGrid[10, 62] = 1; MapGrid[8, 65] = 1;
 
+            MapGrid[12, 72] = 1; MapGrid[12, 73] = 1;
             MapGrid[13, 80] = 1; MapGrid[13, 81] = 1; MapGrid[13, 82] = 1;
+
+            Checkpoints.Add(new Rectangle(25 * tileSize, 13 * tileSize, 64, 64)); 
+            Checkpoints.Add(new Rectangle(75 * tileSize, 13 * tileSize, 64, 64)); 
 
             FinishLine = new Rectangle(95 * tileSize, 0, 5 * tileSize, 600);
 
@@ -99,12 +120,29 @@ namespace SimplePlatformer
                 }
             }
             
+            // Draw Start flag
+            Rectangle sourceStart = new Rectangle(0, 0, 64, 64);
+            Rectangle destStart = new Rectangle(5 * tileSize, 13 * tileSize, 64, 64);
+            Raylib.DrawTexturePro(texStart, sourceStart, destStart, new Vector2(0, 0), 0f, Color.White);
+
+            for (int i = 0; i < Checkpoints.Count; i++)
+            {
+                var cp = Checkpoints[i];
+                Texture2D currentTex = ReachedCheckpoints.Contains(i) ? texCheckpointOut : texCheckpointIdle;
+                Rectangle sourceRect = new Rectangle(0, 0, 64, 64);
+                Rectangle destRect = new Rectangle(cp.X, cp.Y, 64, 64);
+                Raylib.DrawTexturePro(currentTex, sourceRect, destRect, new Vector2(0,0), 0f, Color.White);
+            }
+
             Raylib.DrawRectangleRec(FinishLine, new Color(0, 255, 0, 100));
         }
 
         public void Unload()
         {
             Raylib.UnloadTexture(tileset);
+            Raylib.UnloadTexture(texStart);
+            Raylib.UnloadTexture(texCheckpointIdle);
+            Raylib.UnloadTexture(texCheckpointOut);
         }
     }
 }

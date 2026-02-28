@@ -10,7 +10,8 @@ namespace SimplePlatformer
         Options,
         Gameplay,
         GameOver,
-        LevelComplete
+        LevelComplete,
+        PauseMenu
     }
 
     class Program
@@ -18,6 +19,7 @@ namespace SimplePlatformer
         static void Main()
         {
             Raylib.InitWindow(800, 600, "Knuckles Platformer .NET");
+            Raylib.SetExitKey(KeyboardKey.Null);
             Raylib.InitAudioDevice();
             Raylib.SetTargetFPS(60);
 
@@ -38,14 +40,24 @@ namespace SimplePlatformer
             Texture2D backgroundTex = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"backgrounds\background.png"));
             Texture2D ringTexture = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"items\ring.gif"));
             Sound ringSound = Raylib.LoadSound(System.IO.Path.Combine(assets, @"sounds\ring.mp3"));
+            Sound checkpointSound = Raylib.LoadSound(System.IO.Path.Combine(assets, @"sounds\sonic-checkpoint.mp3"));
             Font customFont = Raylib.LoadFont(System.IO.Path.Combine(assets, @"fonts\PixelOperator8-Bold.ttf"));
+
+            Texture2D texBtnPlay = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"buttons\Play.png"));
+            Texture2D texBtnSettings = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"buttons\Settings.png"));
+            Texture2D texBtnClose = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"buttons\Close.png"));
 
             List<Ring> rings = new List<Ring>
             {
                 new Ring(new Vector2(300, 450)),
                 new Ring(new Vector2(600, 250)),
+                new Ring(new Vector2(850, 380)),
+                new Ring(new Vector2(1000, 200)),
                 new Ring(new Vector2(1200, 400)),
-                new Ring(new Vector2(2500, 450))
+                new Ring(new Vector2(1800, 350)),
+                new Ring(new Vector2(2500, 450)),
+                new Ring(new Vector2(2650, 400)),
+                new Ring(new Vector2(2800, 350))
             };
 
             int score = 0;
@@ -56,6 +68,8 @@ namespace SimplePlatformer
             camera.Offset = new Vector2(800 / 2.0f, 600 / 2.0f);
             camera.Rotation = 0.0f;
             camera.Zoom = 1.0f;
+
+            Vector2 lastCheckpoint = new Vector2(400, 300);
 
             while (!Raylib.WindowShouldClose())
             {
@@ -76,9 +90,10 @@ namespace SimplePlatformer
                             {
                                 score = 0;
                                 timeRemaining = 60f;
-                                player = new Player(new Vector2(400, 300), assets);
+                                player = new Player(lastCheckpoint, assets);
                                 camera.Target = player.Hitbox.Position;
                                 foreach(var r in rings) r.IsCollected = false;
+                                gameLevel.ReachedCheckpoints.Clear();
                                 currentState = GameState.Gameplay;
                             }
                             else if (selectedMenuOption == 1) currentState = GameState.Options;
@@ -93,6 +108,12 @@ namespace SimplePlatformer
                         break;
 
                     case GameState.Gameplay:
+                        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+                        {
+                            currentState = GameState.PauseMenu;
+                            break;
+                        }
+
                         timeRemaining -= dt;
                         if (timeRemaining <= 0)
                         {
@@ -112,6 +133,21 @@ namespace SimplePlatformer
                         if (Raylib.CheckCollisionRecs(player.Hitbox, gameLevel.FinishLine))
                         {
                             currentState = GameState.LevelComplete;
+                            lastCheckpoint = new Vector2(400, 300); // Reset a fine livello
+                        }
+
+                        // Checkpoint save logic
+                        for (int cpIdx = 0; cpIdx < gameLevel.Checkpoints.Count; cpIdx++)
+                        {
+                            var cp = gameLevel.Checkpoints[cpIdx];
+                            if (Raylib.CheckCollisionRecs(player.Hitbox, cp))
+                            {
+                                if (gameLevel.ReachedCheckpoints.Add(cpIdx))
+                                {
+                                    Raylib.PlaySound(checkpointSound);
+                                    lastCheckpoint = new Vector2(cp.X, cp.Y - 50);
+                                }
+                            }
                         }
 
                         foreach (var ring in rings)
@@ -129,6 +165,11 @@ namespace SimplePlatformer
                     case GameState.LevelComplete:
                         if (Raylib.IsKeyPressed(KeyboardKey.Enter)) currentState = GameState.MainMenu;
                         break;
+                        
+                    case GameState.PauseMenu:
+                        if (Raylib.IsKeyPressed(KeyboardKey.Escape)) currentState = GameState.Gameplay;
+                        if (Raylib.IsKeyPressed(KeyboardKey.Q)) currentState = GameState.MainMenu;
+                        break;
                 }
 
                 if (currentState == GameState.MainMenu && selectedMenuOption == 2 && Raylib.IsKeyPressed(KeyboardKey.Enter))
@@ -140,21 +181,45 @@ namespace SimplePlatformer
                 
                 if (currentState == GameState.MainMenu)
                 {
-                    Raylib.ClearBackground(Color.DarkBlue);
-                    Raylib.DrawText("KNUCKLES PLATFORM", 200, 150, 30, Color.White);
+                    Raylib.ClearBackground(new Color(20, 30, 60, 255));
                     
-                    Color colorNuovo = (selectedMenuOption == 0) ? Color.Red : Color.LightGray;
-                    Color colorOpzioni = (selectedMenuOption == 1) ? Color.Red : Color.LightGray;
-                    Color colorEsci = (selectedMenuOption == 2) ? Color.Red : Color.LightGray;
+                    int titleWidth = Raylib.MeasureText("KNUCKLES PLATFORM", 40);
+                    Raylib.DrawText("KNUCKLES PLATFORM", 400 - (titleWidth / 2), 100, 40, Color.Gold);
+                    
+                    string[] menuItems = { "Nuovo Gioco / Riprendi", "Opzioni", "Esci" };
+                    Texture2D[] btnIcons = { texBtnPlay, texBtnSettings, texBtnClose };
+                    int startY = 250;
+                    int spacing = 80;
 
-                    Raylib.DrawText((selectedMenuOption == 0 ? "> " : "") + "Nuovo Gioco", 300, 300, 25, colorNuovo);
-                    Raylib.DrawText((selectedMenuOption == 1 ? "> " : "") + "Opzioni", 300, 350, 25, colorOpzioni);
-                    Raylib.DrawText((selectedMenuOption == 2 ? "> " : "") + "Esci", 300, 400, 25, colorEsci);
+                    for (int i = 0; i < menuItems.Length; i++)
+                    {
+                        Rectangle btnRect = new Rectangle(250, startY + (i * spacing), 350, 50);
+                        
+                        if (selectedMenuOption == i)
+                        {
+                            Raylib.DrawRectangleRounded(btnRect, 0.5f, 10, Color.Red);
+                            // DrawRectangleLinesEx per evitare problemi di firma di Raylib-cs con RoundedLines
+                            Raylib.DrawRectangleLinesEx(btnRect, 3, Color.White);
+                            Raylib.DrawTexture(btnIcons[i], (int)btnRect.X + 15, (int)btnRect.Y + 9, Color.White);
+                            Raylib.DrawText(menuItems[i], (int)btnRect.X + 60, (int)btnRect.Y + 15, 20, Color.White);
+                        }
+                        else
+                        {
+                            Raylib.DrawRectangleRounded(btnRect, 0.5f, 10, Color.DarkBlue);
+                            Raylib.DrawTexture(btnIcons[i], (int)btnRect.X + 15, (int)btnRect.Y + 9, Color.White);
+                            Raylib.DrawText(menuItems[i], (int)btnRect.X + 60, (int)btnRect.Y + 15, 20, Color.LightGray);
+                        }
+                    }
                 }
                 else if (currentState == GameState.Options)
                 {
                     Raylib.ClearBackground(Color.DarkPurple);
                     Raylib.DrawText("- OPZIONI -", 320, 100, 30, Color.White);
+                    
+                    Raylib.DrawText("Volume: 100%", 300, 200, 25, Color.LightGray);
+                    Raylib.DrawText("Schermo Intero: OFF", 300, 260, 25, Color.LightGray);
+                    Raylib.DrawText("Difficoltà: Normale", 300, 320, 25, Color.LightGray);
+
                     Raylib.DrawText("[Premi BACKSPACE per tornare indietro]", 200, 500, 20, Color.Gray);
                 }
                 else if (currentState == GameState.Gameplay)
@@ -176,8 +241,14 @@ namespace SimplePlatformer
                     
                     Raylib.EndMode2D();
 
+                    // HUD Backgrounds
+                    Raylib.DrawRectangleRounded(new Rectangle(10, 10, 220, 40), 0.5f, 10, new Color(0, 0, 0, 150));
+                    // Posiziona il box del tempo a destra
+                    Raylib.DrawRectangleRounded(new Rectangle(510, 10, 240, 40), 0.5f, 10, new Color(0, 0, 0, 150));
+
                     Raylib.DrawTextEx(customFont, $"SCORE: {score}", new Vector2(20, 20), 24, 2, Color.Gold);
-                    Raylib.DrawTextEx(customFont, $"TIME: {(int)timeRemaining}", new Vector2(520, 20), 24, 2, Color.Red);
+                    // Testo centrato nel suo box
+                    Raylib.DrawTextEx(customFont, $"TIME: {(int)timeRemaining}", new Vector2(530, 20), 24, 2, Color.Red);
                 }
                 else if (currentState == GameState.GameOver)
                 {
@@ -192,6 +263,19 @@ namespace SimplePlatformer
                     Raylib.DrawTextEx(customFont, $"Punti totali: {score}", new Vector2(250, 320), 24, 2, Color.White);
                     Raylib.DrawTextEx(customFont, "Premi INVIO", new Vector2(300, 400), 20, 2, Color.LightGray);
                 }
+                else if (currentState == GameState.PauseMenu)
+                {
+                    Raylib.ClearBackground(new Color(0, 0, 0, 200));
+                    Raylib.DrawText("- PAUSA -", 340, 150, 30, Color.White);
+                    
+                    Raylib.DrawText("Volume: 100%", 320, 250, 25, Color.LightGray);
+                    Raylib.DrawText("Comandi:", 200, 320, 20, Color.Red);
+                    Raylib.DrawText("- Frecce Destra/Sinistra per muoversi", 200, 360, 20, Color.Gold);
+                    Raylib.DrawText("- Spazio per saltare", 200, 400, 20, Color.Gold);
+                    
+                    Raylib.DrawText("[Premi ESC per Riprendere]", 250, 500, 20, Color.White);
+                    Raylib.DrawText("[Premi Q per Uscire al Menu]", 250, 540, 20, Color.Gray);
+                }
 
                 Raylib.EndDrawing();
             }
@@ -199,7 +283,11 @@ namespace SimplePlatformer
             Raylib.UnloadFont(customFont);
             Raylib.UnloadTexture(backgroundTex);
             Raylib.UnloadTexture(ringTexture);
+            Raylib.UnloadTexture(texBtnPlay);
+            Raylib.UnloadTexture(texBtnSettings);
+            Raylib.UnloadTexture(texBtnClose);
             Raylib.UnloadSound(ringSound);
+            Raylib.UnloadSound(checkpointSound);
             gameLevel.Unload();
             player.Unload();
             
