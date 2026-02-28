@@ -1,6 +1,8 @@
 ﻿using System.Numerics;
 using System.Collections.Generic;
 using Raylib_cs;
+using SimplePlatformer.Models;
+using SimplePlatformer.Engine;
 
 namespace SimplePlatformer
 {
@@ -33,9 +35,9 @@ namespace SimplePlatformer
             GameState currentState = GameState.MainMenu;
             int selectedMenuOption = 0;
 
-            Player player = new Player(new Vector2(400, 300), assets);
-            
-            Level gameLevel = new Level(assets);
+            MapData mapData = LevelGenerator.CreateLevel1();
+            MapRenderer mapRenderer = new MapRenderer(assets);
+            Player player = new Player(mapData.StartPosition, assets);
 
             Texture2D backgroundTex = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"backgrounds\background.png"));
             Texture2D ringTexture = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"items\ring.gif"));
@@ -47,18 +49,11 @@ namespace SimplePlatformer
             Texture2D texBtnSettings = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"buttons\Settings.png"));
             Texture2D texBtnClose = Raylib.LoadTexture(System.IO.Path.Combine(assets, @"buttons\Close.png"));
 
-            List<Ring> rings = new List<Ring>
+            List<Ring> rings = new List<Ring>();
+            foreach (var pos in mapData.RingSpawns)
             {
-                new Ring(new Vector2(300, 450)),
-                new Ring(new Vector2(600, 250)),
-                new Ring(new Vector2(850, 380)),
-                new Ring(new Vector2(1000, 200)),
-                new Ring(new Vector2(1200, 400)),
-                new Ring(new Vector2(1800, 350)),
-                new Ring(new Vector2(2500, 450)),
-                new Ring(new Vector2(2650, 400)),
-                new Ring(new Vector2(2800, 350))
-            };
+                rings.Add(new Ring(pos));
+            }
 
             int score = 0;
             float timeRemaining = 60f;
@@ -69,7 +64,7 @@ namespace SimplePlatformer
             camera.Rotation = 0.0f;
             camera.Zoom = 1.0f;
 
-            Vector2 lastCheckpoint = new Vector2(400, 300);
+            Vector2 lastCheckpoint = mapData.StartPosition;
 
             while (!Raylib.WindowShouldClose())
             {
@@ -93,7 +88,7 @@ namespace SimplePlatformer
                                 player = new Player(lastCheckpoint, assets);
                                 camera.Target = player.Hitbox.Position;
                                 foreach(var r in rings) r.IsCollected = false;
-                                gameLevel.ReachedCheckpoints.Clear();
+                                mapData.ReachedCheckpoints.Clear();
                                 currentState = GameState.Gameplay;
                             }
                             else if (selectedMenuOption == 1) currentState = GameState.Options;
@@ -120,7 +115,7 @@ namespace SimplePlatformer
                             currentState = GameState.GameOver;
                         }
 
-                        player.Update(dt, gameLevel.Platforms.ToArray());
+                        player.Update(dt, mapData.Platforms.ToArray());
                         
                         if (player.Hitbox.Y > 800)
                         {
@@ -130,19 +125,18 @@ namespace SimplePlatformer
                         if (player.Hitbox.X > 400) camera.Target.X = player.Hitbox.X;
                         camera.Target.Y = 300;
 
-                        if (Raylib.CheckCollisionRecs(player.Hitbox, gameLevel.FinishLine))
+                        if (Raylib.CheckCollisionRecs(player.Hitbox, mapData.FinishLine))
                         {
                             currentState = GameState.LevelComplete;
-                            lastCheckpoint = new Vector2(400, 300); // Reset a fine livello
+                            lastCheckpoint = mapData.StartPosition;
                         }
 
-                        // Checkpoint save logic
-                        for (int cpIdx = 0; cpIdx < gameLevel.Checkpoints.Count; cpIdx++)
+                        for (int cpIdx = 0; cpIdx < mapData.Checkpoints.Count; cpIdx++)
                         {
-                            var cp = gameLevel.Checkpoints[cpIdx];
+                            var cp = mapData.Checkpoints[cpIdx];
                             if (Raylib.CheckCollisionRecs(player.Hitbox, cp))
                             {
-                                if (gameLevel.ReachedCheckpoints.Add(cpIdx))
+                                if (mapData.ReachedCheckpoints.Add(cpIdx))
                                 {
                                     Raylib.PlaySound(checkpointSound);
                                     lastCheckpoint = new Vector2(cp.X, cp.Y - 50);
@@ -198,7 +192,6 @@ namespace SimplePlatformer
                         if (selectedMenuOption == i)
                         {
                             Raylib.DrawRectangleRounded(btnRect, 0.5f, 10, Color.Red);
-                            // DrawRectangleLinesEx per evitare problemi di firma di Raylib-cs con RoundedLines
                             Raylib.DrawRectangleLinesEx(btnRect, 3, Color.White);
                             Raylib.DrawTexture(btnIcons[i], (int)btnRect.X + 15, (int)btnRect.Y + 9, Color.White);
                             Raylib.DrawText(menuItems[i], (int)btnRect.X + 60, (int)btnRect.Y + 15, 20, Color.White);
@@ -230,7 +223,7 @@ namespace SimplePlatformer
 
                     Raylib.BeginMode2D(camera);
 
-                    gameLevel.Draw();
+                    mapRenderer.Draw(mapData);
                     
                     foreach (var ring in rings)
                     {
@@ -241,13 +234,10 @@ namespace SimplePlatformer
                     
                     Raylib.EndMode2D();
 
-                    // HUD Backgrounds
                     Raylib.DrawRectangleRounded(new Rectangle(10, 10, 220, 40), 0.5f, 10, new Color(0, 0, 0, 150));
-                    // Posiziona il box del tempo a destra
                     Raylib.DrawRectangleRounded(new Rectangle(510, 10, 240, 40), 0.5f, 10, new Color(0, 0, 0, 150));
 
                     Raylib.DrawTextEx(customFont, $"SCORE: {score}", new Vector2(20, 20), 24, 2, Color.Gold);
-                    // Testo centrato nel suo box
                     Raylib.DrawTextEx(customFont, $"TIME: {(int)timeRemaining}", new Vector2(530, 20), 24, 2, Color.Red);
                 }
                 else if (currentState == GameState.GameOver)
@@ -288,7 +278,7 @@ namespace SimplePlatformer
             Raylib.UnloadTexture(texBtnClose);
             Raylib.UnloadSound(ringSound);
             Raylib.UnloadSound(checkpointSound);
-            gameLevel.Unload();
+            mapRenderer.Unload();
             player.Unload();
             
             Raylib.CloseAudioDevice();
